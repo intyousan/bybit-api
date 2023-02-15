@@ -8,7 +8,7 @@ import (
 
 func TestConnect(t *testing.T) {
 	cfg := &Configuration{
-		Addr: HostTestnet,
+		Addr: HostTestnetLinear,
 		//ApiKey:        "wKuYtkeNdC2PaMKjoy",
 		//SecretKey:     "5ekcDn3KnKoCRbfvrPImYzVdx7Ri2hhVxkmw",
 		ApiKey:        "6IASD6KDBdunn5qLpT",
@@ -58,7 +58,7 @@ func handleOrder(data []*Order) {
 
 func TestOrderBookL2(t *testing.T) {
 	cfg := &Configuration{
-		Addr:          HostTestnet,
+		Addr:          HostTestnetLinear,
 		Proxy:         "http://127.0.0.1:1081",
 		ApiKey:        "rwEwhfC6mDFYIGfcyb",
 		SecretKey:     "yfNJSzGapfFwbJyvguAyVXLJSIOCIegBg42Z",
@@ -68,9 +68,9 @@ func TestOrderBookL2(t *testing.T) {
 	b := New(cfg)
 
 	// 订阅新版25档orderBook
-	b.Subscribe(WSOrderBook25L1 + ".BTCUSD")
+	b.Subscribe(WSOrderBook50 + ".BTCUSD")
 
-	b.On(WSOrderBook25L1, handleOrderBook)
+	b.On(WSOrderBook50, handleOrderBook)
 
 	//// 实时交易
 	// b.Subscribe(WSTrade) // BTCUSD/ETHUSD/EOSUSD/XRPUSD

@@ -32,16 +32,25 @@ const (
 // wss://stream.bybit.com/realtime
 
 const (
-	HostReal    = "wss://stream.bybit.com/realtime"
-	HostTestnet = "wss://stream-testnet.bybit.com/realtime"
+	HostMainnetSpot       = "wss://stream.bybit.com/v5/public/spot"
+	HostMainnetLinear     = "wss://stream.bybit.com/v5/public/linear"
+	HostMainnetInverse    = "wss://stream.bybit.com/v5/public/inverse"
+	HostMainnetUsdcOption = "wss://stream.bybit.com/v5/public/option"
+	HostMainnetPrivate    = "wss://stream.bybit.com/v5/private"
+
+	HostTestnetSpot       = "wss://stream-testnet.bybit.com/v5/public/spot"
+	HostTestnetLinear     = "wss://stream-testnet.bybit.com/v5/public/linear"
+	HostTestnetInverse    = "wss://stream-testnet.bybit.com/v5/public/inverse"
+	HostTestnetUsdcOption = "wss://stream-testnet.bybit.com/v5/public/option"
+	HostTestnetPrivate    = "wss://stream-testnet.bybit.com/v5/private"
 )
 
 const (
-	WSOrderBook25L1 = "orderBookL2_25" // 新版25档orderBook: order_book_25L1.BTCUSD
-	WSKLine         = "kline"          // K线: kline.BTCUSD.1m
-	WSTrade         = "trade"          // 实时交易: trade/trade.BTCUSD
-	WSInsurance     = "insurance"      // 每日保险基金更新: insurance
-	WSInstrument    = "instrument"     // 产品最新行情: instrument
+	WSOrderBook50 = "orderbook.50" // 新版25档orderBook: orderbook.50.BTCUSD
+	WSKLine       = "kline"        // K线: kline.BTCUSD.1m
+	WSTrade       = "trade"        // 实时交易: trade/trade.BTCUSD
+	WSInsurance   = "insurance"    // 每日保险基金更新: insurance
+	WSInstrument  = "instrument"   // 产品最新行情: instrument
 
 	WSPosition  = "position"  // 仓位变化: position
 	WSExecution = "execution" // 委托单成交信息: execution
@@ -51,7 +60,7 @@ const (
 )
 
 var (
-	topicOrderBook25l1prefix = WSOrderBook25L1 + "."
+	topicOrderBook50Prefix = WSOrderBook50 + "."
 )
 
 type Configuration struct {
@@ -71,17 +80,14 @@ type ByBitWS struct {
 	mu     sync.RWMutex
 	Ended  bool
 
-	subscribeCmds   []Cmd
-	orderBookLocals map[string]*OrderBookLocal // key: symbol
-
-	emitter *emission.Emitter
+	subscribeCmds []Cmd
+	emitter       *emission.Emitter
 }
 
 func New(config *Configuration) *ByBitWS {
 	b := &ByBitWS{
-		cfg:             config,
-		emitter:         emission.NewEmitter(),
-		orderBookLocals: make(map[string]*OrderBookLocal),
+		cfg:     config,
+		emitter: emission.NewEmitter(),
 	}
 	b.ctx, b.cancel = context.WithCancel(context.Background())
 
@@ -137,10 +143,10 @@ func (b *ByBitWS) IsConnected() bool {
 	return b.conn.IsConnected()
 }
 
-func (b *ByBitWS) Subscribe(arg string) {
+func (b *ByBitWS) Subscribe(args ...interface{}) {
 	cmd := Cmd{
 		Op:   "subscribe",
-		Args: []interface{}{arg},
+		Args: args,
 	}
 	b.subscribeCmds = append(b.subscribeCmds, cmd)
 	b.SendCmd(cmd)
@@ -257,29 +263,21 @@ func (b *ByBitWS) processMessage(messageType int, data []byte) {
 
 	if topicValue := ret.Get("topic"); topicValue.Exists() {
 		topic := topicValue.String()
-		if strings.HasPrefix(topic, topicOrderBook25l1prefix) {
-			symbol := topic[len(topicOrderBook25l1prefix):]
+		if strings.HasPrefix(topic, topicOrderBook50Prefix) {
 			type_ := ret.Get("type").String()
 			raw := ret.Get("data").Raw
-
-			switch type_ {
-			case "snapshot":
-				var data []*OrderBookL2
-				err := json.Unmarshal([]byte(raw), &data)
-				if err != nil {
-					log.Printf("BybitWs %v", err)
-					return
-				}
-				b.processOrderBookSnapshot(symbol, data...)
-			case "delta":
-				var delta OrderBookL2Delta
-				err := json.Unmarshal([]byte(raw), &delta)
-				if err != nil {
-					log.Printf("BybitWs %v", err)
-					return
-				}
-				b.processOrderBookDelta(symbol, &delta)
+			updateId := ret.Get("u").Int()
+			isSnapshot := false
+			if type_ == "snapshot" || updateId == 1 {
+				isSnapshot = true
 			}
+			var data OrderBookV5
+			err := json.Unmarshal([]byte(raw), &data)
+			if err != nil {
+				log.Printf("BybitWs %v", err)
+				return
+			}
+			b.processOrderBook(&data, isSnapshot)
 		} else if strings.HasPrefix(topic, WSTrade) {
 			symbol := strings.TrimLeft(topic, WSTrade+".")
 			raw := ret.Get("data").Raw

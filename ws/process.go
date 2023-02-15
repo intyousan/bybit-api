@@ -1,27 +1,7 @@
 package ws
 
-func (b *ByBitWS) processOrderBookSnapshot(symbol string, ob ...*OrderBookL2) { // ob []*OrderBookL2
-	var value *OrderBookLocal
-	var ok bool
-
-	value, ok = b.orderBookLocals[symbol]
-	if !ok {
-		value = NewOrderBookLocal()
-		b.orderBookLocals[symbol] = value
-	}
-	value.LoadSnapshot(ob)
-
-	b.Emit(WSOrderBook25L1, symbol, value.GetOrderBook())
-}
-
-func (b *ByBitWS) processOrderBookDelta(symbol string, delta *OrderBookL2Delta) {
-	value, ok := b.orderBookLocals[symbol]
-	if !ok {
-		return
-	}
-	value.Update(delta)
-
-	b.Emit(WSOrderBook25L1, symbol, value.GetOrderBook())
+func (b *ByBitWS) processOrderBook(ob *OrderBookV5, isSnapshot bool) { // ob []*OrderBookL2
+	b.Emit(WSOrderBook50, ob, isSnapshot)
 }
 
 func (b *ByBitWS) processTrade(symbol string, data ...*Trade) {

@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+type OrderBookV5 struct {
+	Symbol string     `json:"s"`
+	Bids   [][]string `json:"b"`
+	Asks   [][]string `json:"a"`
+}
+
 type OrderBookL2 struct {
 	ID     int64   `json:"id"`
 	Price  float64 `json:"price,string"`
