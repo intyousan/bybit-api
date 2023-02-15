@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/frankrap/bybit-api/ws"
+	"github.com/intyousan/bybit-api/ws"
 	"log"
 )
 
